@@ -7,18 +7,19 @@ namespace Expressions.Task3.E3SQueryProvider
 {
     public class ExpressionToFtsRequestTranslator : ExpressionVisitor
     {
-        readonly StringBuilder _resultStringBuilder;
+        private string _member;
+        private string _constant;
 
         public ExpressionToFtsRequestTranslator()
         {
-            _resultStringBuilder = new StringBuilder();
+            new StringBuilder();
         }
 
         public string Translate(Expression exp)
         {
             Visit(exp);
 
-            return _resultStringBuilder.ToString();
+            return $"{_member}:({_constant})";
         }
 
         #region protected methods
@@ -33,6 +34,25 @@ namespace Expressions.Task3.E3SQueryProvider
 
                 return node;
             }
+
+            if (node.Method.DeclaringType == typeof(string))
+            {
+                Visit(node.Arguments[0]);
+                Visit(node.Object);
+                switch (node.Method.Name)
+                {
+                    case "Contains":
+                        _constant = $"*{_constant}*";
+                        break;
+                    case "StartsWith":
+                        _constant = $"{_constant}*";
+                        break;
+                    case "EndsWith":
+                        _constant = $"*{_constant}";
+                        break;
+                }
+                return node;
+            }
             return base.VisitMethodCall(node);
         }
 
@@ -41,16 +61,8 @@ namespace Expressions.Task3.E3SQueryProvider
             switch (node.NodeType)
             {
                 case ExpressionType.Equal:
-                    if (node.Left.NodeType != ExpressionType.MemberAccess)
-                        throw new NotSupportedException($"Left operand should be property or field: {node.NodeType}");
-
-                    if (node.Right.NodeType != ExpressionType.Constant)
-                        throw new NotSupportedException($"Right operand should be constant: {node.NodeType}");
-
                     Visit(node.Left);
-                    _resultStringBuilder.Append("(");
                     Visit(node.Right);
-                    _resultStringBuilder.Append(")");
                     break;
 
                 default:
@@ -62,15 +74,14 @@ namespace Expressions.Task3.E3SQueryProvider
 
         protected override Expression VisitMember(MemberExpression node)
         {
-            _resultStringBuilder.Append(node.Member.Name).Append(":");
+            _member = node.Member.Name;
 
             return base.VisitMember(node);
         }
 
         protected override Expression VisitConstant(ConstantExpression node)
         {
-            _resultStringBuilder.Append(node.Value);
-
+            _constant = node.Value.ToString();
             return node;
         }
 
