@@ -7,18 +7,21 @@ namespace Expressions.Task3.E3SQueryProvider
 {
     public class ExpressionToFtsRequestTranslator : ExpressionVisitor
     {
+        private readonly StringBuilder _stringBuilder = new StringBuilder();
+
         private string _member;
         private string _constant;
-
-        public ExpressionToFtsRequestTranslator()
-        {
-            new StringBuilder();
-        }
+        private const string Separator = ";";
 
         public string Translate(Expression exp)
         {
             Visit(exp);
 
+            return _stringBuilder.ToString();
+        }
+
+        private string MemberConstantToString()
+        {
             return $"{_member}:({_constant})";
         }
 
@@ -31,7 +34,6 @@ namespace Expressions.Task3.E3SQueryProvider
             {
                 var predicate = node.Arguments[1];
                 Visit(predicate);
-
                 return node;
             }
 
@@ -51,6 +53,7 @@ namespace Expressions.Task3.E3SQueryProvider
                         _constant = $"*{_constant}";
                         break;
                 }
+                _stringBuilder.Append(MemberConstantToString());
                 return node;
             }
             return base.VisitMethodCall(node);
@@ -62,6 +65,12 @@ namespace Expressions.Task3.E3SQueryProvider
             {
                 case ExpressionType.Equal:
                     Visit(node.Left);
+                    Visit(node.Right);
+                    _stringBuilder.Append(MemberConstantToString());
+                    break;
+                case ExpressionType.AndAlso:
+                    Visit(node.Left);
+                    _stringBuilder.Append(Separator);
                     Visit(node.Right);
                     break;
 
